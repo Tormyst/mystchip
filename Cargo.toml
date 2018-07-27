@@ -1,0 +1,6 @@
+[package]
+name = "mystchip"
+version = "0.1.0"
+authors = ["Raphael Bronfman-Nadas <raphael@dal.ca>"]
+
+[dependencies]

@@ -2,21 +2,23 @@ use std::fmt;
 
 pub struct Cpu {
     reg:[u8; 16],
+    i: u16,
+    pc: u16,
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { reg: [0; 16] }
+        Cpu { i: 0, pc: 0, reg: [0; 16] }
     }
 
     pub fn new_reg(reg: [u8; 16]) -> Cpu {
-        Cpu { reg }
+        Cpu { i: 0, pc: 0, reg }
     }
 }
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "CPU {{ reg: [ \n\
+        write!(f, "CPU {{ I: 0x{:03x}\tPC: 0x{:03x}\treg: [ \n\
         V0: 0x{:02x}\t\
         V1: 0x{:02x}\t\
         V2: 0x{:02x}\t\
@@ -34,6 +36,8 @@ impl fmt::Debug for Cpu {
         VE: 0x{:02x}\t\
         VF: 0x{:02x}\n\
         ] }}", 
+        self.i,
+        self.pc,
         self.reg[0], 
         self.reg[1],
         self.reg[2],

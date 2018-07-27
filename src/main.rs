@@ -1,6 +1,13 @@
 mod cpu;
+mod mem;
 use cpu::Cpu;
-// use mem::Mem;
+use mem::Mem;
 
-fn main() {
+use std::io;
+
+fn main(){
+    println!("{:?}", Cpu::new());
+    println!("{:?}", Mem::new());
+    println!("{}", Mem::new());
+    println!("{}", Mem::test_graphic());
 }

@@ -1,4 +1,7 @@
 use std::fmt;
+use std::io;
+use std::io::Read;
+use std::fs::File;
 
 pub struct Mem {
     mem: [u8; 4096],
@@ -26,6 +29,10 @@ impl Mem {
         Mem { mem: [0; 4096], gfx }
     }
 
+    pub fn load(&mut self, mut prog: File) -> Result<usize, io::Error> {
+        prog.read(&mut self.mem[0x200..])
+    }
+
     fn gfx_read(&self, row: usize, col: usize) -> bool {
         self.gfx[gfx_offset(row, col)]
     }
@@ -33,7 +40,18 @@ impl Mem {
 
 impl fmt::Debug for Mem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Mem")
+        writeln!(f, "Mem");
+        let mut index = 0u16;
+        writeln!(f, "      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F");
+        for val in self.mem.chunks(16) {
+            write!(f, "{:04X}: ", index);
+            for num in val {
+                write!(f, "{:02X} ", num);
+            }
+            index += 0x10;
+            writeln!(f, "");
+        }
+        write!(f, "")
     }
 }
 

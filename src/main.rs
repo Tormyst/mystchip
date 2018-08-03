@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io;
 use std::process::Command;
+use std::time::SystemTime;
+use std::time::Duration;
 
 mod cpu;
 mod mem;
@@ -51,9 +53,18 @@ fn run(){
     let mut chip8 = Chip8::new();
     chip8.load("pong.ch8");
     println!("{:?}", chip8);
+
+    //Time zero
+    let mut last_render = SystemTime::now();
     loop {
         chip8.cycle();
-        chip8.display();
+        //Wait for 60 hz
+        let now = SystemTime::now();
+        let difference = now.duration_since(last_render).unwrap();
+        if difference >= Duration::from_millis(16) {
+            chip8.display();
+            last_render = SystemTime::now();
+        }
     }
 }
 

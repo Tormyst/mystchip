@@ -37,6 +37,22 @@ impl Mem {
         self.mem[address as usize]
     }
 
+    pub fn gfx_write(&mut self, x: u8, y: u8, sprite: u8) -> bool {
+        let start = gfx_offset(y.into(), x.into());
+        let mut res = false;
+        println!("sprite: {:08b}", sprite);
+        for b in format!("{:08b}", sprite).chars().enumerate() {
+            // println!("Char: {:?}", b);
+            if b.1 == '1' {
+                if self.gfx[start + b.0] {
+                    res = true;
+                }
+            self.gfx[start + b.0] = !self.gfx[start + b.0];
+            }
+        }
+        res
+    }
+
     fn gfx_read(&self, row: usize, col: usize) -> bool {
         self.gfx[gfx_offset(row, col)]
     }

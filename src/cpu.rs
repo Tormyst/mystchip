@@ -1,6 +1,11 @@
 use std::fmt;
 use mem::Mem;
 
+pub enum ScreenUpdate {
+    Yes,
+    No
+}
+
 pub struct Cpu {
     reg:[u8; 16],
     i: u16,
@@ -29,7 +34,7 @@ impl Cpu {
     }
 
 
-    pub fn cpu_cycle(&mut self, mem: &mut Mem) -> Result<(), String> {
+    pub fn cpu_cycle(&mut self, mem: &mut Mem) -> Result<ScreenUpdate, String> {
         //fetch
         let inst_byte_upper = mem.read(self.pc);
         let inst_byte_lower = mem.read(self.pc + 1);
@@ -40,13 +45,31 @@ impl Cpu {
             0x6 => {  // 6XNN Sets VX to NN 
                 self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower; 
                 self.increment_pc(); 
-                Ok(()) 
+                Ok(ScreenUpdate::No) 
             } 
             0xA => {  // ANNN Sets I to NNN
                 self.i = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
                 self.increment_pc(); 
-                Ok(()) 
+                Ok(ScreenUpdate::No) 
             } 
+            0xD => {  // DXYN Draws 
+                let x = self.reg[low_nibble(inst_byte_upper) as usize];
+                let y = self.reg[high_nibble(inst_byte_lower) as usize];
+                let n = low_nibble(inst_byte_upper);
+                let mut ret = false;
+                for iter in 0..n {
+                    let sprite = mem.read(self.i + (iter as u16));
+                    ret |= mem.gfx_write(x, y + iter, sprite);
+                }
+                if ret {
+                    self.reg[0xF] = 1u8;
+                }
+                else {
+                    self.reg[0xF] = 0u8;
+                }
+                self.increment_pc(); 
+                Ok(ScreenUpdate::Yes)
+            }
             _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
         }
         //execute

@@ -23,7 +23,7 @@ impl Chip8 {
     pub fn new() -> Chip8 {
         Chip8 {
             cpu: Cpu::new(),
-            mem: Mem::test_graphic()
+            mem: Mem::new()
         }
     }
 
@@ -32,10 +32,14 @@ impl Chip8 {
         self.mem.load(f)
     }
     pub fn cycle(&mut self) -> Result<(), String> {
-        self.cpu.cpu_cycle(&mut self.mem)
+        match self.cpu.cpu_cycle(&mut self.mem)? {
+            cpu::ScreenUpdate::Yes => {self.display()},
+            _ => {} 
+        };
+        Ok(())
     }
 
-    pub fn display(&self) {
+    fn display(&self) {
         print!("{}", String::from_utf8_lossy(&
         Command::new("clear").output()
             .expect("Failed to clear screen").stdout
@@ -54,7 +58,7 @@ fn run(){
 
     let mut chip8 = Chip8::new();
     chip8.load("pong.ch8");
-    println!("{:?}", chip8);
+    // println!("{:?}", chip8);
 
     //Time zero
     let mut last_render = SystemTime::now();

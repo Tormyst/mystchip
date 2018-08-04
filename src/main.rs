@@ -31,7 +31,9 @@ impl Chip8 {
         let f = File::open(gamefile)?;
         self.mem.load(f)
     }
-    pub fn cycle(&mut self) {}
+    pub fn cycle(&mut self) -> Result<(), String> {
+        self.cpu.cpu_cycle(&mut self.mem)
+    }
 
     pub fn display(&self) {
         print!("{}", String::from_utf8_lossy(&
@@ -57,15 +59,22 @@ fn run(){
     //Time zero
     let mut last_render = SystemTime::now();
     loop {
-        chip8.cycle();
+        let res = chip8.cycle();
+        if let Err(str_err) = res {
+            println!("{}", str_err);
+            break;
+        }
         //Wait for 60 hz
+        /*
         let now = SystemTime::now();
         let difference = now.duration_since(last_render).unwrap();
         if difference >= Duration::from_millis(16) {
             chip8.display();
             last_render = SystemTime::now();
         }
+        */
     }
+    println!("{:?}", chip8);
 }
 
 fn setupGraphics(){}

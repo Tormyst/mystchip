@@ -33,6 +33,10 @@ impl Mem {
         prog.read(&mut self.mem[0x200..])
     }
 
+    pub fn read(&self, address: u16) -> u8 {
+        self.mem[address as usize]
+    }
+
     fn gfx_read(&self, row: usize, col: usize) -> bool {
         self.gfx[gfx_offset(row, col)]
     }

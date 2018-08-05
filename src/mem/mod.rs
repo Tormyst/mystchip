@@ -3,6 +3,8 @@ use std::io;
 use std::io::Read;
 use std::fs::File;
 
+mod initmem;
+
 pub struct Mem {
     mem: [u8; 4096],
     gfx: [bool; 64 * 32]
@@ -14,7 +16,7 @@ fn gfx_offset(row: usize, col: usize) -> usize {
 
 impl Mem {
     pub fn new() -> Mem {
-        Mem { mem: [0; 4096], gfx: [false; 64 * 32] }
+        Mem { mem: initmem::init(), gfx: [false; 64 * 32] }
     }
 
     pub fn test_graphic() -> Mem {
@@ -35,6 +37,10 @@ impl Mem {
 
     pub fn read(&self, address: u16) -> u8 {
         self.mem[address as usize]
+    }
+
+    pub fn write(&mut self, address: u16, data: u8) {
+        self.mem[address as usize] = data;
     }
 
     pub fn gfx_write(&mut self, x: u8, y: u8, sprite: u8) -> bool {

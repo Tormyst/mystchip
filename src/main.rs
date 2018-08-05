@@ -16,6 +16,7 @@ use mem::Mem;
 struct Chip8 {
     cpu: Cpu,
     mem: Mem,
+    time: SystemTime,
     // Screen
 }
 
@@ -23,7 +24,8 @@ impl Chip8 {
     pub fn new() -> Chip8 {
         Chip8 {
             cpu: Cpu::new(),
-            mem: Mem::new()
+            mem: Mem::new(),
+            time: SystemTime::now(),
         }
     }
 
@@ -36,6 +38,12 @@ impl Chip8 {
             cpu::ScreenUpdate::Yes => {self.display()},
             _ => {} 
         };
+        let now = SystemTime::now();
+        let difference = now.duration_since(self.time).unwrap();
+        if difference >= Duration::from_millis(16) {
+            self.cpu.updateTime();
+            self.time = SystemTime::now();
+        }
         Ok(())
     }
 

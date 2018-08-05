@@ -46,7 +46,7 @@ impl Mem {
     pub fn gfx_write(&mut self, x: u8, y: u8, sprite: u8) -> bool {
         let start = gfx_offset(y.into(), x.into());
         let mut res = false;
-        println!("sprite: {:08b}", sprite);
+        // println!("sprite: {:08b}", sprite);
         for b in format!("{:08b}", sprite).chars().enumerate() {
             // println!("Char: {:?}", b);
             if b.1 == '1' {

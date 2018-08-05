@@ -33,6 +33,10 @@ impl Cpu {
         self.pc = self.pc.overflowing_add(2).0;
     }
 
+    pub fn updateTime(&mut self) {
+        if self.dt > 0 { self.dt -= 1; }
+        if self.st > 0 { self.st -= 1; /* stop buzz if 0 */ }
+    }
 
     pub fn cpu_cycle(&mut self, mem: &mut Mem) -> Result<ScreenUpdate, String> {
         //fetch
@@ -41,8 +45,8 @@ impl Cpu {
 
         self.increment_pc();
 
-        println!("Instruction fetched: {:02X} {:02X}", inst_byte_upper, inst_byte_lower);
-        //decode
+        // println!("Instruction fetched: {:02X} {:02X}", inst_byte_upper, inst_byte_lower);
+        // decode
         match  high_nibble(inst_byte_upper) {
             0x0 => {
                 match inst_byte_upper {
@@ -128,6 +132,7 @@ impl Cpu {
                     }
                     0x18 => { // FX15 set ST to VX
                         self.st = self.reg[low_nibble(inst_byte_upper) as usize];
+                        /* if st > 0 start buzz */
                         Ok(ScreenUpdate::No)
                     }
                     0x29 => { // FX29 I is set to the font location indicated by VX

@@ -2,6 +2,9 @@ use std::fmt;
 use std::vec::Vec;
 use mem::Mem;
 
+extern crate rand;
+use rand::prelude::*;
+
 pub enum ScreenUpdate {
     Yes,
     No
@@ -14,6 +17,7 @@ pub struct Cpu {
     stack: Vec<u16>,
     dt: u8,
     st: u8,
+    rand_inst: ThreadRng,
 }
 
 fn high_nibble(num: u8) -> u8 {(num  >> 4) & 0x0F}
@@ -26,7 +30,15 @@ fn fuze(high: u8, low: u8) -> u16 {
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { i: 0, pc: 0x200, reg: [0; 16], stack: Vec::new(), dt: 0, st: 0 }
+        Cpu { 
+            i: 0, 
+            pc: 0x200, 
+            reg: [0; 16], 
+            stack: Vec::new(), 
+            dt: 0, 
+            st: 0,
+            rand_inst: thread_rng(),
+        }
     }
 
     fn increment_pc(&mut self) {
@@ -103,6 +115,11 @@ impl Cpu {
                 self.i = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
                 Ok(ScreenUpdate::No) 
             } 
+            0xC => {  // CXNN Sets VX to RANDOM & NN
+                self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower
+                    & self.rand_inst.gen::<u8>(); 
+                Ok(ScreenUpdate::No) 
+            }
             0xD => {  // DXYN Draws 
                 let x = self.reg[low_nibble(inst_byte_upper) as usize];
                 let y = self.reg[high_nibble(inst_byte_lower) as usize];

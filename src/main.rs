@@ -65,7 +65,7 @@ fn run(){
     loop {
         let res = chip8.cycle();
         if let Err(str_err) = res {
-            println!("{}", str_err);
+            println!("Error on {}", str_err);
             break;
         }
         //Wait for 60 hz

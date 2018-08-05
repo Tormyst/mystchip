@@ -1,4 +1,5 @@
 use std::fmt;
+use std::vec::Vec;
 use mem::Mem;
 
 pub enum ScreenUpdate {
@@ -10,6 +11,7 @@ pub struct Cpu {
     reg:[u8; 16],
     i: u16,
     pc: u16,
+    stack: Vec<u16>
 }
 
 fn high_nibble(num: u8) -> u8 {(num  >> 4) & 0x0F}
@@ -22,11 +24,11 @@ fn fuze(high: u8, low: u8) -> u16 {
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { i: 0, pc: 0x200, reg: [0; 16] }
+        Cpu { i: 0, pc: 0x200, reg: [0; 16], stack: Vec::new() }
     }
 
     pub fn new_reg(reg: [u8; 16]) -> Cpu {
-        Cpu { i: 0, pc: 0x200, reg }
+        Cpu { i: 0, pc: 0x200, reg, stack: Vec::new()}
     }
 
     fn increment_pc(&mut self) {
@@ -39,17 +41,22 @@ impl Cpu {
         let inst_byte_upper = mem.read(self.pc);
         let inst_byte_lower = mem.read(self.pc + 1);
 
+        self.increment_pc();
+
         println!("Instruction fetched: {:02X} {:02X}", inst_byte_upper, inst_byte_lower);
         //decode
         match  high_nibble(inst_byte_upper) {
+            0x2 => {  // 2NNN Call function at NNN
+                self.stack.push(self.pc);
+                self.pc = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
+                Ok(ScreenUpdate::No) 
+            }
             0x6 => {  // 6XNN Sets VX to NN 
                 self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower; 
-                self.increment_pc(); 
                 Ok(ScreenUpdate::No) 
             } 
             0xA => {  // ANNN Sets I to NNN
                 self.i = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
-                self.increment_pc(); 
                 Ok(ScreenUpdate::No) 
             } 
             0xD => {  // DXYN Draws 
@@ -67,7 +74,6 @@ impl Cpu {
                 else {
                     self.reg[0xF] = 0u8;
                 }
-                self.increment_pc(); 
                 Ok(ScreenUpdate::Yes)
             }
             _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}

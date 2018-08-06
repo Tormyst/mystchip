@@ -111,6 +111,73 @@ impl Cpu {
                 self.reg[x] = self.reg[x].overflowing_add(inst_byte_lower).0;
                 Ok(ScreenUpdate::No) 
             }
+            0x8 => {  // 8XYZ Preform a register to register operation based on Z
+                match low_nibble(inst_byte_lower) {
+                    0x00 => { // 8XY0  VX = VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                            self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No) 
+                    }, 
+                    0x01 => { // 8XY1  VX = VX | VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                            self.reg[low_nibble(inst_byte_upper) as usize] |
+                            self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No) 
+                    }
+                    0x02 => { // 8XY2  VX = VX & VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                            self.reg[low_nibble(inst_byte_upper) as usize] &
+                            self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No) 
+                    }
+                    0x03 => { // 8XY3  VX = VX ^ VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                            self.reg[low_nibble(inst_byte_upper) as usize] ^
+                            self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No) 
+                    }
+                    0x04 => { // 8XY4  VX = VX + VY set carry
+                        let sum  = 
+                            self.reg[low_nibble(inst_byte_upper) as usize]
+                            .overflowing_add(
+                                self.reg[high_nibble(inst_byte_lower) as usize]
+                                );
+                        self.reg[low_nibble(inst_byte_upper) as usize] = sum.0;
+                        match sum.1 {
+                            true => self.reg[0xf] = 1,
+                            false => self.reg[0xf] = 0
+                        }
+                        Ok(ScreenUpdate::No) 
+                    }
+                    0x05 => { // 8XY5  VX = VX - VY set carry
+                        let sum  = 
+                            self.reg[low_nibble(inst_byte_upper) as usize]
+                            .overflowing_sub(
+                                self.reg[high_nibble(inst_byte_lower) as usize]
+                                );
+                        self.reg[low_nibble(inst_byte_upper) as usize] = sum.0;
+                        match sum.1 {
+                            true => self.reg[0xf] = 0,
+                            false => self.reg[0xf] = 1
+                        }
+                        Ok(ScreenUpdate::No) 
+                    }
+                    0x06 => { // 8XY6  VX = VX - VY set carry
+                        let sum  = 
+                            self.reg[low_nibble(inst_byte_upper) as usize]
+                            .overflowing_sub(
+                                self.reg[high_nibble(inst_byte_lower) as usize]
+                                );
+                        self.reg[low_nibble(inst_byte_upper) as usize] = sum.0;
+                        match sum.1 {
+                            true => self.reg[0xf] = 0,
+                            false => self.reg[0xf] = 1
+                        }
+                        Ok(ScreenUpdate::No) 
+                    }
+                    _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                }
+            }
             0xA => {  // ANNN Sets I to NNN
                 self.i = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
                 Ok(ScreenUpdate::No) 
@@ -137,8 +204,17 @@ impl Cpu {
                 }
                 Ok(ScreenUpdate::Yes)
             }
+            0xE =>{  // EXZZ if key (ZZ = 9E Down, ZZ = A1 Up) then skip next instruction
+                let key = self.reg[low_nibble(inst_byte_upper) as usize];
+                // Stub for now.
+                match inst_byte_lower {
+                    0x9E => {Ok(ScreenUpdate::No)}
+                    0xA1 => {self.increment_pc();Ok(ScreenUpdate::No)}
+                    _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                }
+            }
             0xF => {
-                match  inst_byte_lower {
+                match inst_byte_lower {
                     0x07 => { // FX07 set VX to DT
                         self.reg[low_nibble(inst_byte_upper) as usize] = self.dt;
                         Ok(ScreenUpdate::No)

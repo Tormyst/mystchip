@@ -1,4 +1,5 @@
 extern crate rand;
+extern crate piston_window;
 
 use std::fs::File;
 use std::io;
@@ -9,8 +10,10 @@ use std::thread::sleep;
 
 mod cpu;
 mod mem;
+mod display;
 use cpu::Cpu;
 use mem::Mem;
+use display::Display;
 // use std::fmt::Debug;
 
 //use std::io;
@@ -21,6 +24,7 @@ struct Chip8 {
     mem: Mem,
     time: SystemTime,
     last_display: SystemTime,
+    display: Display,
     // Screen
 }
 
@@ -31,6 +35,7 @@ impl Chip8 {
             mem: Mem::new(),
             time: SystemTime::now(),
             last_display: SystemTime::now(),
+            display: Display::new().unwrap(),
         }
     }
 
@@ -53,22 +58,7 @@ impl Chip8 {
     }
 
     fn display(&mut self) {
-        let now = SystemTime::now();
-        let difference = now.duration_since(self.last_display).unwrap();
-        if difference < Duration::from_millis(8) {
-            sleep(Duration::from_millis(8) - difference);
-        }
-        print!(
-            "{}",
-            String::from_utf8_lossy(
-                &Command::new("clear")
-                    .output()
-                    .expect("Failed to clear screen")
-                    .stdout,
-            )
-        );
-        print!("{}", self.mem);
-        self.last_display = SystemTime::now();
+        self.display.frame(&self.mem);
     }
 }
 

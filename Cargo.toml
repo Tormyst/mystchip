@@ -5,3 +5,5 @@ authors = ["Raphael Bronfman-Nadas <raphael@dal.ca>"]
 
 [dependencies]
 rand = "0.5.4"
+piston_window = "0.80.0"
+gfx = "0.17.1"

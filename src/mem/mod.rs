@@ -2,6 +2,7 @@ use std::fmt;
 use std::io;
 use std::io::Read;
 use std::fs::File;
+use std::iter;
 
 mod initmem;
 
@@ -16,6 +17,10 @@ fn gfx_offset(row: usize, col: usize) -> Option<usize> {
     } else {
         None
     }
+}
+
+fn reverse_gfx_offset(val: usize) -> (usize, usize) {
+    (val/64, val%64)
 }
 
 impl Mem {
@@ -55,6 +60,11 @@ impl Mem {
     fn gfx_read(&self, row: usize, col: usize) -> Option<bool> {
         Some(self.gfx[gfx_offset(row, col)?])
     }
+
+    pub fn pixel_locations(&self) -> Vec<(usize,usize)> {
+        self.gfx.into_iter().enumerate().filter(|x| {x.1.clone()}).map(|x| reverse_gfx_offset(x.0)).collect()
+    }
+
 }
 
 impl fmt::Debug for Mem {

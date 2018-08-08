@@ -40,8 +40,8 @@ impl Chip8 {
     }
     pub fn cycle(&mut self) -> Result<(), String> {
         match self.cpu.cpu_cycle(&mut self.mem)? {
-            cpu::ScreenUpdate::Yes => {self.display()},
-            _ => {} 
+            cpu::ScreenUpdate::Yes => self.display(),
+            _ => {}
         };
         let now = SystemTime::now();
         let difference = now.duration_since(self.time).unwrap();
@@ -55,23 +55,28 @@ impl Chip8 {
     fn display(&mut self) {
         let now = SystemTime::now();
         let difference = now.duration_since(self.last_display).unwrap();
-        if difference < Duration::from_millis(8) { 
+        if difference < Duration::from_millis(8) {
             sleep(Duration::from_millis(8) - difference);
         }
-        print!("{}", String::from_utf8_lossy(&
-        Command::new("clear").output()
-            .expect("Failed to clear screen").stdout
-        ));
+        print!(
+            "{}",
+            String::from_utf8_lossy(
+                &Command::new("clear")
+                    .output()
+                    .expect("Failed to clear screen")
+                    .stdout,
+            )
+        );
         print!("{}", self.mem);
         self.last_display = SystemTime::now();
     }
 }
 
-fn main(){
+fn main() {
     run();
 }
 
-fn run(){
+fn run() {
     setupGraphics();
     setupInput();
 
@@ -100,5 +105,5 @@ fn run(){
     println!("{:?}", chip8);
 }
 
-fn setupGraphics(){}
-fn setupInput(){}
+fn setupGraphics() {}
+fn setupInput() {}

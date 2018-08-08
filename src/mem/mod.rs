@@ -7,21 +7,23 @@ mod initmem;
 
 pub struct Mem {
     mem: [u8; 4096],
-    gfx: [bool; 64 * 32]
+    gfx: [bool; 64 * 32],
 }
 
 fn gfx_offset(row: usize, col: usize) -> Option<usize> {
     if row < 32 && col < 64 {
-        Some((row*64) + col)
-    }
-    else {
+        Some((row * 64) + col)
+    } else {
         None
     }
 }
 
 impl Mem {
     pub fn new() -> Mem {
-        Mem { mem: initmem::init(), gfx: [false; 64 * 32] }
+        Mem {
+            mem: initmem::init(),
+            gfx: [false; 64 * 32],
+        }
     }
 
     pub fn load(&mut self, mut prog: File) -> Result<usize, io::Error> {
@@ -78,8 +80,7 @@ impl fmt::Display for Mem {
             for col in 0..64 {
                 if self.gfx_read(row, col).unwrap() {
                     write!(f, "X").unwrap();
-                }
-                else {
+                } else {
                     write!(f, " ").unwrap();
                 }
             }

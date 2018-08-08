@@ -7,11 +7,11 @@ use rand::prelude::*;
 
 pub enum ScreenUpdate {
     Yes,
-    No
+    No,
 }
 
 pub struct Cpu {
-    reg:[u8; 16],
+    reg: [u8; 16],
     i: u16,
     pc: u16,
     stack: Vec<u16>,
@@ -20,8 +20,12 @@ pub struct Cpu {
     rand_inst: ThreadRng,
 }
 
-fn high_nibble(num: u8) -> u8 {(num  >> 4) & 0x0F}
-fn low_nibble(num: u8) -> u8 {num & 0x0F}
+fn high_nibble(num: u8) -> u8 {
+    (num >> 4) & 0x0F
+}
+fn low_nibble(num: u8) -> u8 {
+    num & 0x0F
+}
 fn fuze(high: u8, low: u8) -> u16 {
     let res: u16 = high.into();
     let res = res << 8;
@@ -30,12 +34,12 @@ fn fuze(high: u8, low: u8) -> u16 {
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { 
-            i: 0, 
-            pc: 0x200, 
-            reg: [0; 16], 
-            stack: Vec::new(), 
-            dt: 0, 
+        Cpu {
+            i: 0,
+            pc: 0x200,
+            reg: [0; 16],
+            stack: Vec::new(),
+            dt: 0,
             st: 0,
             rand_inst: thread_rng(),
         }
@@ -46,8 +50,12 @@ impl Cpu {
     }
 
     pub fn updateTime(&mut self) {
-        if self.dt > 0 { self.dt -= 1; }
-        if self.st > 0 { self.st -= 1; /* stop buzz if 0 */ }
+        if self.dt > 0 {
+            self.dt -= 1;
+        }
+        if self.st > 0 {
+            self.st -= 1; /* stop buzz if 0 */
+        }
     }
 
     pub fn cpu_cycle(&mut self, mem: &mut Mem) -> Result<ScreenUpdate, String> {
@@ -59,135 +67,167 @@ impl Cpu {
 
         // println!("Instruction fetched: {:02X} {:02X}", inst_byte_upper, inst_byte_lower);
         // decode
-        match  high_nibble(inst_byte_upper) {
+        match high_nibble(inst_byte_upper) {
             0x0 => {
                 match inst_byte_upper {
                     0x00 => {
                         match inst_byte_lower {
-                            0xEE => { // 00EE Return from function call
+                            0xEE => {
+                                // 00EE Return from function call
                                 self.pc = self.stack.pop().unwrap();
-                                Ok(ScreenUpdate::No) 
+                                Ok(ScreenUpdate::No)
                             }
-                            _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                            _ => {
+                                Err(format!(
+                                    "Instruction {:02X} {:02X}",
+                                    inst_byte_upper,
+                                    inst_byte_lower
+                                ))
+                            }
                         }
                     }
-                    _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                    _ => {
+                        Err(format!(
+                            "Instruction {:02X} {:02X}",
+                            inst_byte_upper,
+                            inst_byte_lower
+                        ))
+                    }
                 }
             }
-            0x1 => {  // 1NNN Jump to NNN
-                self.pc = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
-                Ok(ScreenUpdate::No) 
+            0x1 => {
+                // 1NNN Jump to NNN
+                self.pc = fuze(low_nibble(inst_byte_upper), inst_byte_lower);
+                Ok(ScreenUpdate::No)
             }
-            0x2 => {  // 2NNN Call function at NNN
+            0x2 => {
+                // 2NNN Call function at NNN
                 self.stack.push(self.pc);
-                self.pc = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
-                Ok(ScreenUpdate::No) 
+                self.pc = fuze(low_nibble(inst_byte_upper), inst_byte_lower);
+                Ok(ScreenUpdate::No)
             }
-            0x3 => {  // 3XNN Branches over next instruction if VX = NN
+            0x3 => {
+                // 3XNN Branches over next instruction if VX = NN
                 if self.reg[low_nibble(inst_byte_upper) as usize] == inst_byte_lower {
                     self.increment_pc();
                 }
-                Ok(ScreenUpdate::No) 
+                Ok(ScreenUpdate::No)
             }
-            0x4 => {  // 4XNN Branches over next instruction if VX != NN
+            0x4 => {
+                // 4XNN Branches over next instruction if VX != NN
                 if self.reg[low_nibble(inst_byte_upper) as usize] != inst_byte_lower {
                     self.increment_pc();
                 }
-                Ok(ScreenUpdate::No) 
+                Ok(ScreenUpdate::No)
             }
-            0x5 => {  // 3XY0 Branches over next instruction if VX = VY
-                if self.reg[low_nibble(inst_byte_upper) as usize] == 
-                    self.reg[high_nibble(inst_byte_lower) as usize] {
+            0x5 => {
+                // 3XY0 Branches over next instruction if VX = VY
+                if self.reg[low_nibble(inst_byte_upper) as usize] ==
+                    self.reg[high_nibble(inst_byte_lower) as usize]
+                {
                     self.increment_pc();
                 }
-                Ok(ScreenUpdate::No) 
+                Ok(ScreenUpdate::No)
             }
-            0x6 => {  // 6XNN Sets VX to NN 
-                self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower; 
-                Ok(ScreenUpdate::No) 
-            } 
-            0x7 => {  // 7XNN Adds NN to VX
+            0x6 => {
+                // 6XNN Sets VX to NN
+                self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower;
+                Ok(ScreenUpdate::No)
+            }
+            0x7 => {
+                // 7XNN Adds NN to VX
                 let x = low_nibble(inst_byte_upper) as usize;
                 self.reg[x] = self.reg[x].overflowing_add(inst_byte_lower).0;
-                Ok(ScreenUpdate::No) 
+                Ok(ScreenUpdate::No)
             }
-            0x8 => {  // 8XYZ Preform a register to register operation based on Z
+            0x8 => {
+                // 8XYZ Preform a register to register operation based on Z
                 match low_nibble(inst_byte_lower) {
-                    0x00 => { // 8XY0  VX = VY
-                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                    0x00 => {
+                        // 8XY0  VX = VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] =
                             self.reg[high_nibble(inst_byte_lower) as usize];
-                        Ok(ScreenUpdate::No) 
-                    }, 
-                    0x01 => { // 8XY1  VX = VX | VY
-                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                        Ok(ScreenUpdate::No)
+                    }
+                    0x01 => {
+                        // 8XY1  VX = VX | VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] =
                             self.reg[low_nibble(inst_byte_upper) as usize] |
-                            self.reg[high_nibble(inst_byte_lower) as usize];
-                        Ok(ScreenUpdate::No) 
+                                self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No)
                     }
-                    0x02 => { // 8XY2  VX = VX & VY
-                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                    0x02 => {
+                        // 8XY2  VX = VX & VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] =
                             self.reg[low_nibble(inst_byte_upper) as usize] &
-                            self.reg[high_nibble(inst_byte_lower) as usize];
-                        Ok(ScreenUpdate::No) 
+                                self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No)
                     }
-                    0x03 => { // 8XY3  VX = VX ^ VY
-                        self.reg[low_nibble(inst_byte_upper) as usize] = 
+                    0x03 => {
+                        // 8XY3  VX = VX ^ VY
+                        self.reg[low_nibble(inst_byte_upper) as usize] =
                             self.reg[low_nibble(inst_byte_upper) as usize] ^
-                            self.reg[high_nibble(inst_byte_lower) as usize];
-                        Ok(ScreenUpdate::No) 
+                                self.reg[high_nibble(inst_byte_lower) as usize];
+                        Ok(ScreenUpdate::No)
                     }
-                    0x04 => { // 8XY4  VX = VX + VY set carry
-                        let sum  = 
+                    0x04 => {
+                        // 8XY4  VX = VX + VY set carry
+                        let sum =
                             self.reg[low_nibble(inst_byte_upper) as usize]
-                            .overflowing_add(
-                                self.reg[high_nibble(inst_byte_lower) as usize]
-                                );
+                                .overflowing_add(self.reg[high_nibble(inst_byte_lower) as usize]);
                         self.reg[low_nibble(inst_byte_upper) as usize] = sum.0;
                         match sum.1 {
                             true => self.reg[0xf] = 1,
-                            false => self.reg[0xf] = 0
+                            false => self.reg[0xf] = 0,
                         }
-                        Ok(ScreenUpdate::No) 
+                        Ok(ScreenUpdate::No)
                     }
-                    0x05 => { // 8XY5  VX = VX - VY set carry
-                        let sum  = 
+                    0x05 => {
+                        // 8XY5  VX = VX - VY set carry
+                        let sum =
                             self.reg[low_nibble(inst_byte_upper) as usize]
-                            .overflowing_sub(
-                                self.reg[high_nibble(inst_byte_lower) as usize]
-                                );
+                                .overflowing_sub(self.reg[high_nibble(inst_byte_lower) as usize]);
                         self.reg[low_nibble(inst_byte_upper) as usize] = sum.0;
                         match sum.1 {
                             true => self.reg[0xf] = 0,
-                            false => self.reg[0xf] = 1
+                            false => self.reg[0xf] = 1,
                         }
-                        Ok(ScreenUpdate::No) 
+                        Ok(ScreenUpdate::No)
                     }
-                    0x06 => { // 8XY6  VX = VX - VY set carry
-                        let sum  = 
+                    0x06 => {
+                        // 8XY6  VX = VX - VY set carry
+                        let sum =
                             self.reg[low_nibble(inst_byte_upper) as usize]
-                            .overflowing_sub(
-                                self.reg[high_nibble(inst_byte_lower) as usize]
-                                );
+                                .overflowing_sub(self.reg[high_nibble(inst_byte_lower) as usize]);
                         self.reg[low_nibble(inst_byte_upper) as usize] = sum.0;
                         match sum.1 {
                             true => self.reg[0xf] = 0,
-                            false => self.reg[0xf] = 1
+                            false => self.reg[0xf] = 1,
                         }
-                        Ok(ScreenUpdate::No) 
+                        Ok(ScreenUpdate::No)
                     }
-                    _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                    _ => {
+                        Err(format!(
+                            "Instruction {:02X} {:02X}",
+                            inst_byte_upper,
+                            inst_byte_lower
+                        ))
+                    }
                 }
             }
-            0xA => {  // ANNN Sets I to NNN
-                self.i = fuze(low_nibble(inst_byte_upper), inst_byte_lower); 
-                Ok(ScreenUpdate::No) 
-            } 
-            0xC => {  // CXNN Sets VX to RANDOM & NN
-                self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower
-                    & self.rand_inst.gen::<u8>(); 
-                Ok(ScreenUpdate::No) 
+            0xA => {
+                // ANNN Sets I to NNN
+                self.i = fuze(low_nibble(inst_byte_upper), inst_byte_lower);
+                Ok(ScreenUpdate::No)
             }
-            0xD => {  // DXYN Draws 
+            0xC => {
+                // CXNN Sets VX to RANDOM & NN
+                self.reg[low_nibble(inst_byte_upper) as usize] = inst_byte_lower &
+                    self.rand_inst.gen::<u8>();
+                Ok(ScreenUpdate::No)
+            }
+            0xD => {
+                // DXYN Draws
                 let x = self.reg[low_nibble(inst_byte_upper) as usize];
                 let y = self.reg[high_nibble(inst_byte_lower) as usize];
                 let n = low_nibble(inst_byte_lower);
@@ -198,42 +238,55 @@ impl Cpu {
                 }
                 if ret {
                     self.reg[0xF] = 1u8;
-                }
-                else {
+                } else {
                     self.reg[0xF] = 0u8;
                 }
                 Ok(ScreenUpdate::Yes)
             }
-            0xE =>{  // EXZZ if key (ZZ = 9E Down, ZZ = A1 Up) then skip next instruction
+            0xE => {
+                // EXZZ if key (ZZ = 9E Down, ZZ = A1 Up) then skip next instruction
                 let key = self.reg[low_nibble(inst_byte_upper) as usize];
                 // Stub for now.
                 match inst_byte_lower {
-                    0x9E => {Ok(ScreenUpdate::No)}
-                    0xA1 => {self.increment_pc();Ok(ScreenUpdate::No)}
-                    _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                    0x9E => Ok(ScreenUpdate::No),
+                    0xA1 => {
+                        self.increment_pc();
+                        Ok(ScreenUpdate::No)
+                    }
+                    _ => {
+                        Err(format!(
+                            "Instruction {:02X} {:02X}",
+                            inst_byte_upper,
+                            inst_byte_lower
+                        ))
+                    }
                 }
             }
             0xF => {
                 match inst_byte_lower {
-                    0x07 => { // FX07 set VX to DT
+                    0x07 => {
+                        // FX07 set VX to DT
                         self.reg[low_nibble(inst_byte_upper) as usize] = self.dt;
                         Ok(ScreenUpdate::No)
                     }
-                    0x15 => { // FX15 set DT to VX
+                    0x15 => {
+                        // FX15 set DT to VX
                         self.dt = self.reg[low_nibble(inst_byte_upper) as usize];
                         Ok(ScreenUpdate::No)
                     }
-                    0x18 => { // FX15 set ST to VX
+                    0x18 => {
+                        // FX15 set ST to VX
                         self.st = self.reg[low_nibble(inst_byte_upper) as usize];
                         /* if st > 0 start buzz */
                         Ok(ScreenUpdate::No)
                     }
-                    0x29 => { // FX29 I is set to the font location indicated by VX
-                        self.i = (self.reg[low_nibble(inst_byte_upper) as usize] * 5)
-                            as u16;
+                    0x29 => {
+                        // FX29 I is set to the font location indicated by VX
+                        self.i = (self.reg[low_nibble(inst_byte_upper) as usize] * 5) as u16;
                         Ok(ScreenUpdate::No)
                     }
-                    0x33 => { // FX33 BCD puts VX decimal values into i, i+1 and i+2
+                    0x33 => {
+                        // FX33 BCD puts VX decimal values into i, i+1 and i+2
                         let bin = self.reg[low_nibble(inst_byte_upper) as usize];
                         mem.write(self.i, bin / 100);
                         mem.write(self.i + 1u16, (bin % 100) / 10);
@@ -241,15 +294,27 @@ impl Cpu {
                         Ok(ScreenUpdate::No)
                     }
                     0x65 => {
-                       for index in 0..(1 + low_nibble(inst_byte_upper)) as usize {
-                           self.reg[index] = mem.read(self.i + index as u16);
-                       }
-                       Ok(ScreenUpdate::No)
+                        for index in 0..(1 + low_nibble(inst_byte_upper)) as usize {
+                            self.reg[index] = mem.read(self.i + index as u16);
+                        }
+                        Ok(ScreenUpdate::No)
                     }
-                    _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+                    _ => {
+                        Err(format!(
+                            "Instruction {:02X} {:02X}",
+                            inst_byte_upper,
+                            inst_byte_lower
+                        ))
+                    }
                 }
             }
-            _ => {Err(format!("Instruction {:02X} {:02X}", inst_byte_upper, inst_byte_lower))}
+            _ => {
+                Err(format!(
+                    "Instruction {:02X} {:02X}",
+                    inst_byte_upper,
+                    inst_byte_lower
+                ))
+            }
         }
         //execute
     }
@@ -274,10 +339,10 @@ impl fmt::Debug for Cpu {
         VD: 0x{:02X}\t\
         VE: 0x{:02X}\t\
         VF: 0x{:02X}\n\
-        ] }}", 
+        ] }}",
         self.i,
         self.pc,
-        self.reg[0], 
+        self.reg[0],
         self.reg[1],
         self.reg[2],
         self.reg[3],

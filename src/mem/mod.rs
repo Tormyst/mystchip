@@ -10,25 +10,18 @@ pub struct Mem {
     gfx: [bool; 64 * 32]
 }
 
-fn gfx_offset(row: usize, col: usize) -> usize {
-    (row*64) + col
+fn gfx_offset(row: usize, col: usize) -> Option<usize> {
+    if row < 32 && col < 64 {
+        Some((row*64) + col)
+    }
+    else {
+        None
+    }
 }
 
 impl Mem {
     pub fn new() -> Mem {
         Mem { mem: initmem::init(), gfx: [false; 64 * 32] }
-    }
-
-    pub fn test_graphic() -> Mem {
-        let mut gfx = [false; 2048];
-        for row in 0..32 {
-            for col in 0..64 {
-                if col % 2 == row % 2 {
-                    gfx[gfx_offset(row, col)] = true;
-                }
-            }
-        }
-        Mem { mem: [0; 4096], gfx }
     }
 
     pub fn load(&mut self, mut prog: File) -> Result<usize, io::Error> {
@@ -44,23 +37,21 @@ impl Mem {
     }
 
     pub fn gfx_write(&mut self, x: u8, y: u8, sprite: u8) -> bool {
-        let start = gfx_offset(y.into(), x.into());
         let mut res = false;
-        // println!("sprite: {:08b}", sprite);
+        // println!("Sprite: {} {} {:02x}", x, y, sprite);
         for b in format!("{:08b}", sprite).chars().enumerate() {
-            // println!("Char: {:?}", b);
             if b.1 == '1' {
-                if self.gfx[start + b.0] {
-                    res = true;
+                if let Some(index) = gfx_offset(y as usize, x as usize + b.0) {
+                    res |= self.gfx[index];
+                    self.gfx[index] = !self.gfx[index];
                 }
-            self.gfx[start + b.0] = !self.gfx[start + b.0];
             }
         }
         res
     }
 
-    fn gfx_read(&self, row: usize, col: usize) -> bool {
-        self.gfx[gfx_offset(row, col)]
+    fn gfx_read(&self, row: usize, col: usize) -> Option<bool> {
+        Some(self.gfx[gfx_offset(row, col)?])
     }
 }
 
@@ -85,7 +76,7 @@ impl fmt::Display for Mem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for row in 0..32 {
             for col in 0..64 {
-                if self.gfx_read(row, col) {
+                if self.gfx_read(row, col).unwrap() {
                     write!(f, "X").unwrap();
                 }
                 else {

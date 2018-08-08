@@ -5,6 +5,7 @@ use std::io;
 use std::process::Command;
 use std::time::SystemTime;
 use std::time::Duration;
+use std::thread::sleep;
 
 mod cpu;
 mod mem;
@@ -19,6 +20,7 @@ struct Chip8 {
     cpu: Cpu,
     mem: Mem,
     time: SystemTime,
+    last_display: SystemTime,
     // Screen
 }
 
@@ -28,6 +30,7 @@ impl Chip8 {
             cpu: Cpu::new(),
             mem: Mem::new(),
             time: SystemTime::now(),
+            last_display: SystemTime::now(),
         }
     }
 
@@ -49,12 +52,18 @@ impl Chip8 {
         Ok(())
     }
 
-    fn display(&self) {
+    fn display(&mut self) {
+        let now = SystemTime::now();
+        let difference = now.duration_since(self.last_display).unwrap();
+        if difference < Duration::from_millis(8) { 
+            sleep(Duration::from_millis(8) - difference);
+        }
         print!("{}", String::from_utf8_lossy(&
         Command::new("clear").output()
             .expect("Failed to clear screen").stdout
         ));
         print!("{}", self.mem);
+        self.last_display = SystemTime::now();
     }
 }
 

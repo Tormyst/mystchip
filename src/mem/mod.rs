@@ -20,7 +20,7 @@ fn gfx_offset(row: usize, col: usize) -> Option<usize> {
 }
 
 fn reverse_gfx_offset(val: usize) -> (usize, usize) {
-    (val/64, val%64)
+    (val / 64, val % 64)
 }
 
 impl Mem {
@@ -43,28 +43,45 @@ impl Mem {
         self.mem[address as usize] = data;
     }
 
-    pub fn gfx_write(&mut self, x: u8, y: u8, sprite: u8) -> bool {
-        let mut res = false;
+    pub fn gfx_write(&mut self, x: u8, y: u8, sprite: u8) -> (bool, bool) {
+        // Returns if added bit, and if removed bit.
+        let mut added = false;
+        let mut removed = false;
         // println!("Sprite: {} {} {:02x}", x, y, sprite);
         for b in format!("{:08b}", sprite).chars().enumerate() {
             if b.1 == '1' {
                 if let Some(index) = gfx_offset(y as usize, x as usize + b.0) {
-                    res |= self.gfx[index];
+                    match self.gfx[index] {
+                        true => removed = true,
+                        false => added = true,
+                    };
                     self.gfx[index] = !self.gfx[index];
                 }
             }
         }
-        res
+        (added, removed)
     }
 
     fn gfx_read(&self, row: usize, col: usize) -> Option<bool> {
         Some(self.gfx[gfx_offset(row, col)?])
     }
 
-    pub fn pixel_locations(&self) -> Vec<(usize,usize)> {
-        self.gfx.into_iter().enumerate().filter(|x| {x.1.clone()}).map(|x| reverse_gfx_offset(x.0)).collect()
+    pub fn pixel_locations(&self) -> Vec<(usize, usize)> {
+        self.gfx
+            .into_iter()
+            .enumerate()
+            .filter(|x| x.1.clone())
+            .map(|x| reverse_gfx_offset(x.0))
+            .collect()
     }
 
+    pub fn send_frame(&self, sender: &Fn(usize, usize, bool)) {
+        self.gfx
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| (reverse_gfx_offset(index), value))
+            .for_each(|((x, y), index)| sender(x, y, index.clone()));
+    }
 }
 
 impl fmt::Debug for Mem {

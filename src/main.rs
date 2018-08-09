@@ -1,5 +1,6 @@
 extern crate rand;
 extern crate piston_window;
+extern crate image;
 
 use std::fs::File;
 use std::io;
@@ -7,6 +8,8 @@ use std::process::Command;
 use std::time::SystemTime;
 use std::time::Duration;
 use std::thread::sleep;
+use std::thread;
+use std::sync::mpsc;
 
 mod cpu;
 mod mem;
@@ -17,25 +20,40 @@ use display::Display;
 // use std::fmt::Debug;
 
 //use std::io;
+#[derive(Debug)]
+pub enum cpu_message {
+    Set(usize, usize, bool),
+    Render,
+}
+#[derive(Debug)]
+pub enum display_message {
+    Input([bool; 16]),
+    Die,
+}
 
 #[derive(Debug)]
 struct Chip8 {
     cpu: Cpu,
     mem: Mem,
     time: SystemTime,
-    last_display: SystemTime,
-    display: Display,
-    // Screen
+    cpu_lock: bool,
+    to_display: mpsc::Sender<cpu_message>,
+    from_display: mpsc::Receiver<display_message>,
 }
 
 impl Chip8 {
     pub fn new() -> Chip8 {
+        let (to_display, from_cpu) = mpsc::channel();
+        let (to_cpu, from_display) = mpsc::channel();
+        thread::spawn(move || { Display::cycle(from_cpu, to_cpu); });
+
         Chip8 {
             cpu: Cpu::new(),
             mem: Mem::new(),
             time: SystemTime::now(),
-            last_display: SystemTime::now(),
-            display: Display::new().unwrap(),
+            cpu_lock: false,
+            to_display,
+            from_display,
         }
     }
 
@@ -44,21 +62,39 @@ impl Chip8 {
         self.mem.load(f)
     }
     pub fn cycle(&mut self) -> Result<(), String> {
-        match self.cpu.cpu_cycle(&mut self.mem)? {
-            cpu::ScreenUpdate::Yes => self.display(),
-            _ => {}
-        };
+        if !self.cpu_lock {
+            match self.cpu.cpu_cycle(&mut self.mem)? {
+                cpu::ScreenUpdate::Yes => {self.cpu_lock = true;}
+                _ => {}
+            };
+        }
         let now = SystemTime::now();
         let difference = now.duration_since(self.time).unwrap();
         if difference >= Duration::from_millis(16) {
             self.cpu.updateTime();
+            self.display();
             self.time = SystemTime::now();
+            self.cpu_lock = false;
+        }
+
+        for message in self.from_display.try_iter() {
+            match message {
+                display_message::Die => {
+                    ::std::process::exit(0);
+                }
+                display_message::Input(_) => {
+                }
+                _ => panic!("Unhandled message: {:?}", message),
+            }
         }
         Ok(())
     }
 
     fn display(&mut self) {
-        self.display.frame(&self.mem);
+        self.mem.send_frame(&|x, y, value| {
+            self.to_display.send(cpu_message::Set(x, y, value)).unwrap()
+        });
+        self.to_display.send(cpu_message::Render);
     }
 }
 

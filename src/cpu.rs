@@ -231,17 +231,22 @@ impl Cpu {
                 let x = self.reg[low_nibble(inst_byte_upper) as usize];
                 let y = self.reg[high_nibble(inst_byte_lower) as usize];
                 let n = low_nibble(inst_byte_lower);
-                let mut ret = false;
+                let mut add_flag = false;
+                let mut remove_flag = false;
                 for iter in 0..n {
                     let sprite = mem.read(self.i + (iter as u16));
-                    ret |= mem.gfx_write(x, y + iter, sprite);
+                    let (add_tmp, rm_tmp) = mem.gfx_write(x, y + iter, sprite);
+                    add_flag |= add_tmp;
+                    remove_flag |= remove_flag;
                 }
-                if ret {
-                    self.reg[0xF] = 1u8;
-                } else {
-                    self.reg[0xF] = 0u8;
+                match remove_flag {
+                    true => self.reg[0xF] = 1u8,
+                    false => self.reg[0xF] = 0u8,
+                };
+                match add_flag{
+                    true => Ok(ScreenUpdate::Yes),
+                    false => Ok(ScreenUpdate::No),
                 }
-                Ok(ScreenUpdate::Yes)
             }
             0xE => {
                 // EXZZ if key (ZZ = 9E Down, ZZ = A1 Up) then skip next instruction
@@ -371,14 +376,5 @@ mod tests {
         for reg in cpu.reg.iter() {
             assert_eq!(reg, &0u8);
         }
-    }
-
-    #[test]
-    fn reg_values() {
-        let cpu = Cpu { reg: [55u8; 16] };
-        for reg in cpu.reg.iter() {
-            assert_eq!(reg, &55u8);
-        }
-        println!("{:?}", cpu);
     }
 }

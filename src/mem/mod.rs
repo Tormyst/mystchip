@@ -75,12 +75,8 @@ impl Mem {
             .collect()
     }
 
-    pub fn send_frame(&self, sender: &Fn(usize, usize, bool)) {
-        self.gfx
-            .into_iter()
-            .enumerate()
-            .map(|(index, value)| (reverse_gfx_offset(index), value))
-            .for_each(|((x, y), index)| sender(x, y, index.clone()));
+    pub fn send_frame(&self, sender: &Fn([bool;::framesize])) {
+        sender(self.gfx.clone());
     }
 }
 

@@ -17,14 +17,25 @@ mod display;
 use cpu::Cpu;
 use mem::Mem;
 use display::Display;
-// use std::fmt::Debug;
+use std::fmt::Debug;
+
+const framesize:usize = 64*32;
 
 //use std::io;
-#[derive(Debug)]
 pub enum cpu_message {
-    Set(usize, usize, bool),
+    Frame([bool; framesize]),
     Render,
 }
+
+impl Debug for cpu_message {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            cpu_message::Frame(_) => write!(f, "cpu_message::Frame()"),
+            _ => write!(f, "cpu_message::unknown"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum display_message {
     Input([bool; 16]),
@@ -36,7 +47,7 @@ struct Chip8 {
     cpu: Cpu,
     mem: Mem,
     time: SystemTime,
-    cpu_lock: bool,
+    cpu_lock: usize,
     to_display: mpsc::Sender<cpu_message>,
     from_display: mpsc::Receiver<display_message>,
 }
@@ -51,7 +62,7 @@ impl Chip8 {
             cpu: Cpu::new(),
             mem: Mem::new(),
             time: SystemTime::now(),
-            cpu_lock: false,
+            cpu_lock: 0,
             to_display,
             from_display,
         }
@@ -62,9 +73,9 @@ impl Chip8 {
         self.mem.load(f)
     }
     pub fn cycle(&mut self) -> Result<(), String> {
-        if !self.cpu_lock {
+        if self.cpu_lock < 4 {
             match self.cpu.cpu_cycle(&mut self.mem)? {
-                cpu::ScreenUpdate::Yes => {self.cpu_lock = true;}
+                cpu::ScreenUpdate::Yes => {self.display(); self.cpu_lock += 1;}
                 _ => {}
             };
         }
@@ -72,9 +83,7 @@ impl Chip8 {
         let difference = now.duration_since(self.time).unwrap();
         if difference >= Duration::from_millis(16) {
             self.cpu.updateTime();
-            self.display();
             self.time = SystemTime::now();
-            self.cpu_lock = false;
         }
 
         for message in self.from_display.try_iter() {
@@ -83,6 +92,7 @@ impl Chip8 {
                     ::std::process::exit(0);
                 }
                 display_message::Input(_) => {
+                    self.cpu_lock = 0;
                 }
                 _ => panic!("Unhandled message: {:?}", message),
             }
@@ -91,10 +101,9 @@ impl Chip8 {
     }
 
     fn display(&mut self) {
-        self.mem.send_frame(&|x, y, value| {
-            self.to_display.send(cpu_message::Set(x, y, value)).unwrap()
+        self.mem.send_frame(&|f| {
+            self.to_display.send(cpu_message::Frame(f)).unwrap()
         });
-        self.to_display.send(cpu_message::Render);
     }
 }
 

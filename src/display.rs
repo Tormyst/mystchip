@@ -1,14 +1,16 @@
-use std::fmt;
-use std::sync::mpsc;
-use std::iter;
 use std::error;
+use std::fmt;
+use std::iter;
+use std::sync::mpsc;
 
 use mem::Mem;
 
-use piston_window::*;
 use image::*;
+use piston_window::*;
 
-const off: Rgba<u8> = Rgba { data: [0, 0, 0, 255] };
+const off: Rgba<u8> = Rgba {
+    data: [0, 0, 0, 255],
+};
 const on: Rgba<u8> = Rgba { data: [255; 4] };
 
 pub struct Display {
@@ -23,6 +25,7 @@ impl Display {
     pub fn cycle(rx: mpsc::Receiver<::cpu_message>, tx: mpsc::Sender<::display_message>) {
         let mut window: PistonWindow = WindowSettings::new("MystChip", [640, 320])
             .resizable(true)
+            .vsync(false)
             .exit_on_esc(true)
             .build()
             .unwrap();
@@ -57,45 +60,45 @@ impl Display {
     fn window_update(&mut self, window: &mut PistonWindow) {
         while let Some(e) = window.next() {
             window.event(&e);
+            self.data_update(&mut window.encoder);
+
             if e.render_args().is_some() {
-                self.data_update(&mut window.encoder);
                 self.tx.send(::display_message::Input([false; 16]));
             }
-            window.draw_2d(&e, |c, g| if self.render_flag {
+            window.draw_2d(&e, |c, g| {
                 clear([0.0, 0.0, 0.0, 1.0], g);
                 image(&(self.gfx), c.view.scale(10.0, 10.0), g);
-                self.render_flag = false;
             });
         }
     }
 
     fn data_update(&mut self, encoder: &mut GfxEncoder) {
-        while !self.render_flag {
-            if let Ok(message) = self.rx.try_recv() {
-                // println!("Display message {:?}", message);
-                match message {
-                    ::cpu_message::Set(y, x, value) => {
-                        self.image.put_pixel(
-                            x as u32,
-                            y as u32,
-                            match value {
-                                false => off,
-                                true => on,
-                            },
-                        );
-                    }
-                    ::cpu_message::Render => {
-                        self.gfx.update(encoder, &self.image);
-                        self.render_flag = true;
-                    }
-                    _ => {
-                        panic!("Unhandled cpu_message: {:?}", message);
+        while let Ok(message) = self.rx.try_recv() {
+            // println!("Display message {:?}", message);
+            match message {
+                ::cpu_message::Frame(f) => {
+                    let mut f = f.into_iter();
+                    for col in 0..32 {
+                        for row in 0..64 {
+                            self.image.put_pixel(
+                                row,
+                                col,
+                                match f.next() {
+                                    Some(true) => on,
+                                    Some(false) => off,
+                                    _ => off,
+                                },
+                            );
+                        }
                     }
                 }
-            } else {
-                break;
+                ::cpu_message::Render => {}
+                _ => {
+                    panic!("Unhandled cpu_message: {:?}", message);
+                }
             }
         }
+        self.gfx.update(encoder, &self.image);
     }
 }
 
